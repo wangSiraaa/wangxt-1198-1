@@ -1,0 +1,189 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+.page-container {
+  padding: 20px;
+}
+
+.page-header {
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.page-header h2 {
+  font-size: 18px;
+  color: #303133;
+  margin: 0;
+}
+
+.page-header .desc {
+  color: #909399;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.card-box {
+  background: #fff;
+  padding: 20px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.form-item-required::before {
+  content: '*';
+  color: #f56c6c;
+  margin-right: 4px;
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-pending-escort { background: #ecf5ff; color: #409eff; }
+.status-pending-checkin { background: #fdf6ec; color: #e6a23c; }
+.status-pending-recheck { background: #fef0f0; color: #f56c6c; }
+.status-completed { background: #f0f9eb; color: #67c23a; }
+.status-checked-in { background: #e1f3d8; color: #67c23a; }
+
+.stat-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card .stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.stat-card .stat-label {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.timeline-item {
+  padding: 12px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.timeline-item:last-child {
+  border-bottom: none;
+}
+
+.timeline-title {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.timeline-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.timeline-user {
+  font-size: 12px;
+  color: #606266;
+  margin-top: 4px;
+}
+
+.photo-uploader {
+  width: 100%;
+  min-height: 150px;
+  border: 2px dashed #dcdfe6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.photo-uploader:hover {
+  border-color: #409eff;
+}
+
+.photo-uploader.has-photo {
+  border: 2px solid #67c23a;
+}
+
+.photo-preview {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+}
+
+.detail-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  width: 120px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: #303133;
+  flex: 1;
+}
+
+.weight-warning {
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+  color: #f56c6c;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+.weight-ok {
+  background: #f0f9eb;
+  border: 1px solid #e1f3d8;
+  color: #67c23a;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+.scan-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.scan-section h3 {
+  color: #fff;
+  margin-bottom: 20px;
+}
+
+.scan-input {
+  max-width: 400px;
+  margin: 0 auto;
+}
