@@ -128,6 +128,9 @@ async function initDatabase() {
         handover_time TEXT,
         status TEXT DEFAULT 'pending',
         checkin_remark TEXT,
+        lock_user_id INTEGER,
+        lock_user_name TEXT,
+        lock_time TEXT,
         created_at TEXT DEFAULT (datetime('now', 'localtime')),
         updated_at TEXT DEFAULT (datetime('now', 'localtime'))
       );
@@ -171,6 +174,10 @@ async function initDatabase() {
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
       );
     `);
+
+    try { await run('ALTER TABLE vault_checkin ADD COLUMN lock_user_id INTEGER'); } catch (e) {}
+    try { await run('ALTER TABLE vault_checkin ADD COLUMN lock_user_name TEXT'); } catch (e) {}
+    try { await run('ALTER TABLE vault_checkin ADD COLUMN lock_time TEXT'); } catch (e) {}
 
     const branchCount = (await get('SELECT COUNT(*) as cnt FROM branch')).cnt;
     if (branchCount === 0) {

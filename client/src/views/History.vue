@@ -140,6 +140,10 @@
           <el-descriptions-item label="当前状态">
             <span :class="`status-tag status-${currentDetail.checkin.status}`">{{ checkinStatusMap[currentDetail.checkin.status] }}</span>
           </el-descriptions-item>
+          <template v-if="currentDetail.checkin.status === 'handover_confirmed'">
+            <el-descriptions-item label="锁定人员">{{ currentDetail.checkin.lock_user_name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="锁定时间">{{ currentDetail.checkin.lock_time || '-' }}</el-descriptions-item>
+          </template>
           <el-descriptions-item v-if="currentDetail.checkin.checkin_remark" label="核对备注" :span="2">{{ currentDetail.checkin.checkin_remark }}</el-descriptions-item>
         </el-descriptions>
         <el-empty v-else description="暂未完成入库核对" :image-size="80" />

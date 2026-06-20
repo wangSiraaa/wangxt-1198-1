@@ -420,11 +420,21 @@ app.post('/api/vault/handover-time/lock', async (req, res) => {
     if (checkin.status === 'pending_recheck') {
       return res.json({ code: 400, message: '待复点状态不能锁定交接时间，请先完成复点' });
     }
+    if (checkin.status === 'handover_confirmed') {
+      return res.json({ code: 400, message: '交接时间已锁定，不可重复锁定' });
+    }
+    if (checkin.status !== 'checked_in' && checkin.status !== 'rechecked') {
+      return res.json({ code: 400, message: `当前状态[${checkin.status}]不能锁定交接时间` });
+    }
     await run(`
       UPDATE vault_checkin
-      SET status = 'handover_confirmed', updated_at = datetime('now', 'localtime')
+      SET status = 'handover_confirmed',
+          lock_user_id = ?,
+          lock_user_name = ?,
+          lock_time = datetime('now', 'localtime'),
+          updated_at = datetime('now', 'localtime')
       WHERE id = ?
-    `, [checkin_id]);
+    `, [vault_user_id, (req.body.vault_user_name || ''), checkin_id]);
     res.json({ code: 200, message: '交接时间已锁定，后续不可修改' });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });

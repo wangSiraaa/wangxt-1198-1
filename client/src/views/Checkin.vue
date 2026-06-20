@@ -184,6 +184,7 @@ import {
   vaultCheckin, getCheckinList, lockHandoverTime, getParamList
 } from '@/api'
 import { useUserStore, useAppStore } from '@/store'
+import { getLocalDateStr, verifyMidnightRegression } from '@/utils/date'
 
 const userStore = useUserStore()
 const appStore = useAppStore()
@@ -226,10 +227,12 @@ const loadData = async () => {
   if (t) weightThreshold.value = parseFloat(t.param_value)
 
   const all = await getCheckinList({})
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateStr()
   todayCheckin.value = all.filter(c => {
     if (!c.created_at) return false
-    return c.created_at.startsWith(today)
+    const isToday = c.created_at.startsWith(today)
+    const isCheckedinOrLocked = c.status === 'checked_in' || c.status === 'handover_confirmed'
+    return isToday && isCheckedinOrLocked
   }).slice(0, 10)
 }
 
@@ -315,7 +318,11 @@ const lockHandover = async (row) => {
     type: 'warning',
     confirmButtonText: '确认锁定'
   })
-  await lockHandoverTime({ checkin_id: row.id, vault_user_id: userStore.user.id })
+  await lockHandoverTime({
+    checkin_id: row.id,
+    vault_user_id: userStore.user.id,
+    vault_user_name: userStore.userName
+  })
   ElMessage.success('交接时间已锁定，后续不可修改')
   loadData()
 }

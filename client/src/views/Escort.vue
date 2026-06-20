@@ -119,6 +119,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getApplicationList, getApplicationByNo, escortHandover, getEscortList } from '@/api'
 import { useUserStore } from '@/store'
+import { getLocalDateStr } from '@/utils/date'
 
 const userStore = useUserStore()
 const scanNo = ref('')
@@ -134,7 +135,7 @@ const handoverForm = reactive({
 
 const loadData = async () => {
   pendingList.value = await getApplicationList({ status: 'pending_escort' })
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateStr()
   const all = await getEscortList({ escort_id: userStore.user?.id })
   myHandoverList.value = all.filter(h => {
     if (!h.scan_time) return false
