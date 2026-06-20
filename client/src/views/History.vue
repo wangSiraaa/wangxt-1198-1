@@ -163,6 +163,43 @@
           <el-descriptions-item label="复点时间">{{ currentDetail.recheck.recheck_time }}</el-descriptions-item>
           <el-descriptions-item v-if="currentDetail.recheck.recheck_remark" label="复点备注" :span="2">{{ currentDetail.recheck.recheck_remark }}</el-descriptions-item>
         </el-descriptions>
+
+        <el-divider v-if="currentDetail.transfers && currentDetail.transfers.length" content-position="left">
+          <el-icon><Position /></el-icon> 押运途中交接记录
+        </el-divider>
+        <el-timeline v-if="currentDetail.transfers && currentDetail.transfers.length">
+          <el-timeline-item
+            v-for="t in currentDetail.transfers"
+            :key="t.id"
+            :timestamp="t.transfer_time"
+            placement="top"
+          >
+            <p style="margin:0;">
+              <el-tag size="small" :type="t.transfer_type === 'route_change' ? 'danger' : 'warning'">
+                {{ t.transfer_type === 'route_change' ? '路线变更' : '中途交接' }}
+              </el-tag>
+              经手人：{{ t.to_user_name }}
+              <span v-if="t.from_user_name" style="color:#909399;font-size:12px;">（移交人：{{ t.from_user_name }}）</span>
+            </p>
+            <p v-if="t.remark" style="margin:4px 0 0;font-size:12px;color:#909399;">备注：{{ t.remark }}</p>
+          </el-timeline-item>
+        </el-timeline>
+
+        <el-divider v-if="currentDetail.diff_explanations && currentDetail.diff_explanations.length" content-position="left">
+          <el-icon><Warning /></el-icon> 差异说明（交接已锁定）
+        </el-divider>
+        <el-timeline v-if="currentDetail.diff_explanations && currentDetail.diff_explanations.length">
+          <el-timeline-item
+            v-for="d in currentDetail.diff_explanations"
+            :key="d.id"
+            :timestamp="d.created_at"
+            placement="top"
+            type="warning"
+          >
+            <p style="margin:0;">{{ d.explanation_content }}</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#909399;">提交人：{{ d.submit_user_name }} ｜ 申报 {{ d.declared_weight }}kg / 实际 {{ d.actual_weight }}kg / 差异 {{ d.weight_diff }}kg</p>
+          </el-timeline-item>
+        </el-timeline>
       </template>
     </el-dialog>
   </div>
@@ -189,6 +226,7 @@ const statusMap = {
   pending_escort: '待押运',
   pending_checkin: '待入库',
   pending_recheck: '待复点',
+  handover_confirmed: '已锁定',
   completed: '已完成'
 }
 
@@ -201,7 +239,7 @@ const checkinStatusMap = {
 }
 
 const stepIndex = (status) => {
-  return { pending_escort: 0, pending_checkin: 1, pending_recheck: 2, completed: 3 }[status] || 0
+  return { pending_escort: 0, pending_checkin: 1, pending_recheck: 2, handover_confirmed: 3, completed: 3 }[status] || 0
 }
 
 const loadBranch = async () => {

@@ -157,6 +157,45 @@
           <div class="detail-row"><div class="detail-label">最终重量</div><div class="detail-value">{{ currentDetail.recheck.final_weight }} kg</div></div>
           <div class="detail-row"><div class="detail-label">复点结果</div><div class="detail-value">{{ currentDetail.recheck.result }}</div></div>
         </div>
+        <div v-if="currentDetail.transfers && currentDetail.transfers.length" style="margin-top:12px;padding-top:12px;border-top:1px solid #ebeef5;">
+          <div style="margin-bottom:8px;font-weight:600;">
+            <el-icon><Position /></el-icon> 押运途中交接记录
+          </div>
+          <el-timeline>
+            <el-timeline-item
+              v-for="t in currentDetail.transfers"
+              :key="t.id"
+              :timestamp="t.transfer_time"
+              placement="top"
+            >
+              <p style="margin:0;">
+                <el-tag size="small" :type="t.transfer_type === 'route_change' ? 'danger' : 'warning'">
+                  {{ t.transfer_type === 'route_change' ? '路线变更' : '中途交接' }}
+                </el-tag>
+                经手人：{{ t.to_user_name }}
+              </p>
+              <p v-if="t.from_user_name" style="margin:4px 0 0;font-size:12px;color:#909399;">移交人：{{ t.from_user_name }}</p>
+              <p v-if="t.remark" style="margin:4px 0 0;font-size:12px;color:#909399;">备注：{{ t.remark }}</p>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
+        <div v-if="currentDetail.diff_explanations && currentDetail.diff_explanations.length" style="margin-top:12px;padding-top:12px;border-top:1px solid #ebeef5;">
+          <div style="margin-bottom:8px;font-weight:600;">
+            <el-icon><Warning /></el-icon> 差异说明（交接已锁定）
+          </div>
+          <el-timeline>
+            <el-timeline-item
+              v-for="d in currentDetail.diff_explanations"
+              :key="d.id"
+              :timestamp="d.created_at"
+              placement="top"
+              type="warning"
+            >
+              <p style="margin:0;">{{ d.explanation_content }}</p>
+              <p style="margin:4px 0 0;font-size:12px;color:#909399;">提交人：{{ d.submit_user_name }} ｜ 差异值：{{ d.weight_diff }} kg</p>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -181,6 +220,7 @@ const statusMap = {
   pending_escort: '待押运',
   pending_checkin: '待入库',
   pending_recheck: '待复点',
+  handover_confirmed: '已锁定',
   completed: '已完成'
 }
 

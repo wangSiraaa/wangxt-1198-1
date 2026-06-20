@@ -154,6 +154,38 @@ async function initDatabase() {
         created_at TEXT DEFAULT (datetime('now', 'localtime'))
       );
 
+      CREATE TABLE IF NOT EXISTS escort_transfer (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        application_id INTEGER NOT NULL,
+        application_no TEXT NOT NULL,
+        box_id INTEGER NOT NULL,
+        box_code TEXT NOT NULL,
+        transfer_type TEXT NOT NULL,
+        from_user_id INTEGER,
+        from_user_name TEXT,
+        to_user_id INTEGER NOT NULL,
+        to_user_name TEXT NOT NULL,
+        transfer_time TEXT,
+        remark TEXT,
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+      );
+
+      CREATE TABLE IF NOT EXISTS diff_explanation (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        checkin_id INTEGER NOT NULL,
+        application_id INTEGER NOT NULL,
+        application_no TEXT NOT NULL,
+        box_id INTEGER NOT NULL,
+        box_code TEXT NOT NULL,
+        declared_weight REAL,
+        actual_weight REAL,
+        weight_diff REAL,
+        explanation_content TEXT NOT NULL,
+        submit_user_id INTEGER,
+        submit_user_name TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+      );
+
       CREATE TABLE IF NOT EXISTS system_user (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_code TEXT UNIQUE NOT NULL,

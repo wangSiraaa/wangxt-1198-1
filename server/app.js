@@ -163,8 +163,12 @@ app.post('/api/application/create', async (req, res) => {
     } = req.body;
 
     const requireSealPhoto = await get("SELECT param_value FROM sys_param WHERE param_key = 'require_seal_photo'");
-    if (requireSealPhoto && requireSealPhoto.param_value === '1' && !seal_photo) {
-      return res.json({ code: 400, message: '必须上传封签照片' });
+    const sealRequired = !requireSealPhoto || requireSealPhoto.param_value !== '0';
+    if (sealRequired && !seal_photo) {
+      return res.json({ code: 400, message: '封签照片和尾箱重量缺一不可，请上传封签照片' });
+    }
+    if (weight === undefined || weight === null || weight === '' || parseFloat(weight) <= 0) {
+      return res.json({ code: 400, message: '封签照片和尾箱重量缺一不可，请填写尾箱重量' });
     }
 
     const application_no = generateNo('JK');
@@ -224,9 +228,11 @@ app.get('/api/application/:id', async (req, res) => {
       return res.json({ code: 404, message: '记录不存在' });
     }
     const escort = await get('SELECT * FROM escort_handover WHERE application_id = ? ORDER BY id DESC LIMIT 1', [req.params.id]);
+    const transfers = await all('SELECT * FROM escort_transfer WHERE application_id = ? ORDER BY id ASC', [req.params.id]);
     const checkin = await get('SELECT * FROM vault_checkin WHERE application_id = ? ORDER BY id DESC LIMIT 1', [req.params.id]);
     const recheck = checkin ? await get('SELECT * FROM recheck_record WHERE checkin_id = ? ORDER BY id DESC LIMIT 1', [checkin.id]) : null;
-    res.json({ code: 200, data: { ...row, escort, checkin, recheck } });
+    const diff_explanations = checkin ? await all('SELECT * FROM diff_explanation WHERE checkin_id = ? ORDER BY id ASC', [checkin.id]) : [];
+    res.json({ code: 200, data: { ...row, escort, transfers, checkin, recheck, diff_explanations } });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });
   }
@@ -304,6 +310,71 @@ app.get('/api/escort/list', async (req, res) => {
       params.push(application_no);
     }
     sql += ' ORDER BY id DESC';
+    const rows = await all(sql, params);
+    res.json({ code: 200, data: rows });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
+app.post('/api/escort/transfer', async (req, res) => {
+  try {
+    const {
+      application_id, application_no, box_id, box_code,
+      transfer_type, from_user_id, from_user_name,
+      to_user_id, to_user_name, remark
+    } = req.body;
+
+    const app = await get('SELECT * FROM vault_application WHERE id = ?', [application_id]);
+    if (!app) {
+      return res.json({ code: 404, message: '申请单不存在' });
+    }
+    if (app.status !== 'pending_checkin') {
+      return res.json({ code: 400, message: `当前状态[${app.status}]不在押运途中，不能进行途中交接` });
+    }
+    if (!['route_change', 'midway_handover'].includes(transfer_type)) {
+      return res.json({ code: 400, message: '交接类型不合法' });
+    }
+    if (!to_user_id || !to_user_name) {
+      return res.json({ code: 400, message: '请选择交接经手人' });
+    }
+
+    const info = await run(`
+      INSERT INTO escort_transfer (
+        application_id, application_no, box_id, box_code,
+        transfer_type, from_user_id, from_user_name,
+        to_user_id, to_user_name, transfer_time, remark
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), ?)
+    `, [
+      application_id, application_no, box_id, box_code,
+      transfer_type, from_user_id || null, from_user_name || null,
+      to_user_id, to_user_name, remark || null
+    ]);
+
+    res.json({ code: 200, data: { id: info.lastID } });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
+app.get('/api/escort/transfer/list', async (req, res) => {
+  try {
+    const { application_id, application_no, to_user_id } = req.query;
+    let sql = 'SELECT * FROM escort_transfer WHERE 1=1';
+    const params = [];
+    if (application_id) {
+      sql += ' AND application_id = ?';
+      params.push(application_id);
+    }
+    if (application_no) {
+      sql += ' AND application_no = ?';
+      params.push(application_no);
+    }
+    if (to_user_id) {
+      sql += ' AND to_user_id = ?';
+      params.push(to_user_id);
+    }
+    sql += ' ORDER BY id ASC';
     const rows = await all(sql, params);
     res.json({ code: 200, data: rows });
   } catch (err) {
@@ -475,13 +546,16 @@ app.post('/api/recheck/create', async (req, res) => {
 
     await run(`
       UPDATE vault_checkin
-      SET status = 'rechecked',
+      SET status = 'handover_confirmed',
           actual_weight = ?,
           weight_diff = ABS(declared_weight - ?),
           need_recheck = 0,
+          lock_user_id = ?,
+          lock_user_name = ?,
+          lock_time = datetime('now', 'localtime'),
           updated_at = datetime('now', 'localtime')
       WHERE id = ?
-    `, [final_weight, final_weight, checkin_id]);
+    `, [final_weight, final_weight, recheck_user_id, recheck_user_name, checkin_id]);
 
     await run(`
       UPDATE vault_application
@@ -495,7 +569,11 @@ app.post('/api/recheck/create', async (req, res) => {
       WHERE id = ?
     `, [box_id]);
 
-    res.json({ code: 200, data: { id: info.lastID } });
+    res.json({
+      code: 200,
+      data: { id: info.lastID, locked: true },
+      message: '复点确认完成，交接时间、封签与责任人已锁定，后续仅可发起差异说明'
+    });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });
   }
@@ -516,6 +594,64 @@ app.get('/api/recheck/list', async (req, res) => {
       params.push(application_no);
     }
     sql += ' ORDER BY r.id DESC';
+    const rows = await all(sql, params);
+    res.json({ code: 200, data: rows });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
+app.post('/api/diff-explanation/create', async (req, res) => {
+  try {
+    const {
+      checkin_id, application_id, application_no, box_id, box_code,
+      explanation_content, submit_user_id, submit_user_name
+    } = req.body;
+
+    const checkin = await get('SELECT * FROM vault_checkin WHERE id = ?', [checkin_id]);
+    if (!checkin) {
+      return res.json({ code: 404, message: '入库记录不存在' });
+    }
+    if (checkin.status !== 'handover_confirmed') {
+      return res.json({ code: 400, message: `交接未锁定（当前状态[${checkin.status}]），锁定后才能发起差异说明` });
+    }
+    if (!explanation_content || !explanation_content.trim()) {
+      return res.json({ code: 400, message: '请填写差异说明内容' });
+    }
+
+    const info = await run(`
+      INSERT INTO diff_explanation (
+        checkin_id, application_id, application_no, box_id, box_code,
+        declared_weight, actual_weight, weight_diff,
+        explanation_content, submit_user_id, submit_user_name
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      checkin_id, application_id || checkin.application_id, application_no || checkin.application_no,
+      box_id || checkin.box_id, box_code || checkin.box_code,
+      checkin.declared_weight, checkin.actual_weight, checkin.weight_diff,
+      explanation_content.trim(), submit_user_id || null, submit_user_name || ''
+    ]);
+
+    res.json({ code: 200, data: { id: info.lastID }, message: '差异说明已提交' });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
+app.get('/api/diff-explanation/list', async (req, res) => {
+  try {
+    const { checkin_id, application_no } = req.query;
+    let sql = 'SELECT * FROM diff_explanation WHERE 1=1';
+    const params = [];
+    if (checkin_id) {
+      sql += ' AND checkin_id = ?';
+      params.push(checkin_id);
+    }
+    if (application_no) {
+      sql += ' AND application_no = ?';
+      params.push(application_no);
+    }
+    sql += ' ORDER BY id ASC';
     const rows = await all(sql, params);
     res.json({ code: 200, data: rows });
   } catch (err) {

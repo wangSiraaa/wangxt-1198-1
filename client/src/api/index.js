@@ -48,4 +48,12 @@ export const createRecheck = (data) => request.post('/recheck/create', data)
 
 export const getRecheckList = (params) => request.get('/recheck/list', { params })
 
+export const escortTransfer = (data) => request.post('/escort/transfer', data)
+
+export const getEscortTransferList = (params) => request.get('/escort/transfer/list', { params })
+
+export const createDiffExplanation = (data) => request.post('/diff-explanation/create', data)
+
+export const getDiffExplanationList = (params) => request.get('/diff-explanation/list', { params })
+
 export const getStatistics = () => request.get('/statistics/summary')

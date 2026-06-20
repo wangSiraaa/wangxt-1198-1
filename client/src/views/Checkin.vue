@@ -158,7 +158,7 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="80">
+            <el-table-column label="操作" width="110">
               <template #default="{ row }">
                 <el-button
                   v-if="row.status !== 'handover_confirmed' && !row.need_recheck"
@@ -167,12 +167,71 @@
                 >
                   锁定交接
                 </el-button>
+                <el-button
+                  v-if="row.status === 'handover_confirmed'"
+                  size="small" type="warning" link
+                  @click="openDiffExplain(row)"
+                >
+                  差异说明
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
         </div>
       </el-col>
     </el-row>
+
+    <el-dialog v-model="diffVisible" title="发起差异说明" width="560px" @close="diffVisible = false">
+      <template v-if="currentDiffRow">
+        <el-alert type="warning" :closable="false" style="margin-bottom:16px;">
+          <template #title>
+            <el-icon><Lock /></el-icon>
+            <span style="margin-left:4px;">交接已锁定，仅可发起差异说明，不可修改封签、时间与责任人</span>
+          </template>
+        </el-alert>
+        <div class="detail-row"><div class="detail-label">申请单号</div><div class="detail-value">{{ currentDiffRow.application_no }}</div></div>
+        <div class="detail-row"><div class="detail-label">尾箱编号</div><div class="detail-value">{{ currentDiffRow.box_code }}</div></div>
+        <div class="detail-row"><div class="detail-label">申报重量</div><div class="detail-value">{{ currentDiffRow.declared_weight }} kg</div></div>
+        <div class="detail-row"><div class="detail-label">实际重量</div><div class="detail-value" style="color:#f56c6c;font-weight:600;">{{ currentDiffRow.actual_weight }} kg</div></div>
+        <div class="detail-row"><div class="detail-label">差异值</div><div class="detail-value">
+          <el-tag type="danger">{{ currentDiffRow.weight_diff }} kg</el-tag>
+        </div></div>
+        <div class="detail-row"><div class="detail-label">锁定时间</div><div class="detail-value">{{ currentDiffRow.lock_time || '-' }}</div></div>
+        <div class="detail-row"><div class="detail-label">锁定人</div><div class="detail-value">{{ currentDiffRow.lock_user_name || '-' }}</div></div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #ebeef5;">
+          <div style="margin-bottom:8px;font-weight:600;">
+            <el-icon><EditPen /></el-icon>
+            差异说明内容
+            <span style="color:#f56c6c;">*</span>
+          </div>
+          <el-input v-model="diffForm.explanation_content" type="textarea" :rows="3" placeholder="请详细描述重量差异原因" />
+        </div>
+        <div v-if="diffHistory.length" style="margin-top:16px;">
+          <div style="margin-bottom:8px;font-weight:600;color:#909399;">
+            <el-icon><Clock /></el-icon>
+            历史差异说明
+          </div>
+          <el-timeline>
+            <el-timeline-item
+              v-for="item in diffHistory"
+              :key="item.id"
+              :timestamp="item.created_at"
+              placement="top"
+            >
+              <p style="margin:0;">{{ item.explanation_content }}</p>
+              <p style="margin:4px 0 0;font-size:12px;color:#909399;">提交人：{{ item.submit_user_name }}</p>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
+      </template>
+      <template #footer>
+        <el-button @click="diffVisible = false">关闭</el-button>
+        <el-button type="warning" :loading="submittingDiff" @click="submitDiffExplain">
+          <el-icon><Promotion /></el-icon>
+          <span style="margin-left:4px;">提交差异说明</span>
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -181,7 +240,8 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getApplicationList, getApplicationByNo, getApplicationDetail,
-  vaultCheckin, getCheckinList, lockHandoverTime, getParamList
+  vaultCheckin, getCheckinList, lockHandoverTime, getParamList,
+  createDiffExplanation, getDiffExplanationList
 } from '@/api'
 import { useUserStore, useAppStore } from '@/store'
 import { getLocalDateStr, verifyMidnightRegression } from '@/utils/date'
@@ -325,6 +385,51 @@ const lockHandover = async (row) => {
   })
   ElMessage.success('交接时间已锁定，后续不可修改')
   loadData()
+}
+
+const diffVisible = ref(false)
+const currentDiffRow = ref(null)
+const diffForm = reactive({ explanation_content: '' })
+const diffHistory = ref([])
+const submittingDiff = ref(false)
+
+const openDiffExplain = async (row) => {
+  currentDiffRow.value = row
+  diffForm.explanation_content = ''
+  diffVisible.value = true
+  try {
+    diffHistory.value = await getDiffExplanationList({ checkin_id: row.id })
+  } catch {
+    diffHistory.value = []
+  }
+}
+
+const submitDiffExplain = async () => {
+  if (!diffForm.explanation_content.trim()) {
+    ElMessage.warning('请填写差异说明内容')
+    return
+  }
+  const row = currentDiffRow.value
+  submittingDiff.value = true
+  try {
+    await createDiffExplanation({
+      checkin_id: row.id,
+      application_id: row.application_id,
+      application_no: row.application_no,
+      box_id: row.box_id,
+      box_code: row.box_code,
+      explanation_content: diffForm.explanation_content,
+      submit_user_id: userStore.user.id,
+      submit_user_name: userStore.userName
+    })
+    ElMessage.success('差异说明已提交')
+    diffForm.explanation_content = ''
+    diffHistory.value = await getDiffExplanationList({ checkin_id: row.id })
+  } catch (e) {
+    ElMessage.error(e.message || '提交失败')
+  } finally {
+    submittingDiff.value = false
+  }
 }
 
 onMounted(loadData)
